@@ -1,0 +1,104 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0F0F0F;
+  --surface:   #161616;
+  --surface2:  #1E1E1E;
+  --surface3:  #252525;
+  --border:    #2A2A2A;
+  --border2:   #333;
+  --text:      #F0EDE8;
+  --muted:     #6B6860;
+  --muted2:    #9A9690;
+  --accent:    #4E7C5F;
+  --accent-d:  #3d6b4e;
+  --accent-bg: rgba(78,124,95,0.12);
+  --accent-bd: rgba(78,124,95,0.30);
+  --red:       #C0392B;
+  --red-bg:    rgba(192,57,43,0.12);
+  --red-bd:    rgba(192,57,43,0.25);
+  --amber:     #C4832C;
+  --amber-bg:  rgba(196,131,44,0.12);
+  --amber-bd:  rgba(196,131,44,0.25);
+  --blue:      #3A6B9A;
+  --blue-bg:   rgba(58,107,154,0.12);
+  --blue-bd:   rgba(58,107,154,0.25);
+  --purple:    #7B5EA7;
+  --purple-bg: rgba(123,94,167,0.12);
+  --purple-bd: rgba(123,94,167,0.25);
+}
+
+html, body { height: 100%; }
+
+body {
+  font-family: 'Geist', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+#app { min-height: 100vh; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+.pill {
+  display: inline-flex; align-items: center;
+  font-size: 11px; font-weight: 500;
+  padding: 2px 8px; border-radius: 4px; gap: 3px;
+}
+.pill-red    { background: var(--red-bg);    color: #E05A4E; border: 1px solid var(--red-bd); }
+.pill-amber  { background: var(--amber-bg);  color: #D4933C; border: 1px solid var(--amber-bd); }
+.pill-green  { background: var(--accent-bg); color: #6BB896; border: 1px solid var(--accent-bd); }
+.pill-blue   { background: var(--blue-bg);   color: #5A9ACA; border: 1px solid var(--blue-bd); }
+.pill-purple { background: var(--purple-bg); color: #9B7EC7; border: 1px solid var(--purple-bd); }
+.pill-gray   { background: var(--surface2);  color: var(--muted2); border: 1px solid var(--border2); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font-family: 'Geist', sans-serif; font-size: 12px; font-weight: 500;
+  padding: 7px 14px; border-radius: 7px; cursor: pointer; border: none;
+  transition: all .15s;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-d); }
+.btn-ghost { background: transparent; color: var(--muted2); border: 1px solid var(--border2); }
+.btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+.btn-danger { background: var(--red-bg); color: #E05A4E; border: 1px solid var(--red-bd); }
+.btn-danger:hover { background: rgba(192,57,43,0.2); }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+input, select, textarea {
+  font-family: 'Geist', sans-serif; font-size: 13px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--text); border-radius: 7px; padding: 8px 11px;
+  outline: none; transition: border-color .15s; width: 100%;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+input::placeholder { color: var(--muted); }
+select option { background: var(--surface2); }
+
+label {
+  font-size: 11px; font-weight: 500; color: var(--muted2);
+  display: block; margin-bottom: 5px;
+  letter-spacing: .04em; text-transform: uppercase;
+}
+
+.page-enter-active, .page-leave-active { transition: opacity .2s ease, transform .2s ease; }
+.page-enter-from { opacity: 0; transform: translateY(6px); }
+.page-leave-to   { opacity: 0; transform: translateY(-6px); }
+
+.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity .2s ease; }
+.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+
+.modal-slide-enter-active, .modal-slide-leave-active { transition: opacity .2s ease, transform .2s ease; }
+.modal-slide-enter-from { opacity: 0; transform: translateY(14px) scale(.97); }
+.modal-slide-leave-to   { opacity: 0; transform: translateY(14px) scale(.97); }
+
+hr.div { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
