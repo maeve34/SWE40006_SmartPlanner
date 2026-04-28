@@ -10,7 +10,6 @@
       <RouterLink to="/progress"  class="nav-link">Progress</RouterLink>
     </div>
     <div class="nav-right">
-      <span class="pill pill-green live-badge">● Live</span>
       <div class="user-menu" @click="menuOpen = !menuOpen" ref="menuRef">
         <div class="avatar">{{ auth.user?.avatar }}</div>
         <span class="username">{{ auth.user?.name }}</span>
@@ -51,7 +50,6 @@ onBeforeUnmount(() => document.removeEventListener('click', outside))
 .nav-link:hover { color:var(--text);background:var(--surface2); }
 .nav-link.router-link-active { color:var(--text);background:var(--surface3);border:1px solid var(--border2); }
 .nav-right { margin-left:auto;display:flex;align-items:center;gap:12px; }
-.live-badge { font-size:10px; }
 .user-menu { display:flex;align-items:center;gap:7px;cursor:pointer;position:relative;padding:4px 10px 4px 4px;border-radius:8px;transition:background .15s; }
 .user-menu:hover { background:var(--surface2); }
 .avatar { width:28px;height:28px;border-radius:50%;background:var(--accent-bg);border:1px solid var(--accent-bd);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#6BB896; }

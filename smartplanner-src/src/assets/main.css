@@ -61,7 +61,7 @@ body {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   font-family: 'Geist', sans-serif; font-size: 12px; font-weight: 500;
   padding: 7px 14px; border-radius: 7px; cursor: pointer; border: none;
-  transition: all .15s;
+  transition: all .15s; box-sizing: border-box;
 }
 .btn-primary { background: var(--accent); color: #fff; }
 .btn-primary:hover { background: var(--accent-d); }
