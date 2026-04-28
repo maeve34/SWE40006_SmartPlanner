@@ -306,16 +306,35 @@ const isComplex = computed(() =>
 );
 const ppill = { high: "pill-red", medium: "pill-amber", low: "pill-green" };
 
+// Display invalid date error message on step 1
+function validateStep1Date(){
+  if (form.value.due < todayISO) {
+    error.value = "Due date cannot be in the past.";
+    return false;
+  }
+
+  error.value = "";
+  return true;
+}
+
 // control modal flow
 function next() {
-  if (step.value === 1 && isComplex.value) {
-    step.value = 2;
-    return;
-  }
+  // step 1 validation
   if (step.value === 1) {
-    save();
-    return;
-  }
+      if (!validateStep1Date()) return;
+
+      // simple task: save
+      if (!isComplex.value) {
+        save();
+        return;
+      }
+
+      // complex task: go step 2 ONLY if valid
+      step.value = 2;
+      return;
+    }
+
+  // step 2 validation
   if (step.value === 2) {
     const hasSubtasks = form.value.subtasks.some((s) => s.trim());
 
