@@ -99,7 +99,6 @@
     { text: 'Weekly view — one week at a time' },
     { text: 'AI breaks tasks into subtasks automatically' },
     { text: 'Progress charts powered by vue-chart.js' },
-    { text: 'Export your timetable to PDF instantly' },
   ]
   // reset errors
   function resetErrors() {
