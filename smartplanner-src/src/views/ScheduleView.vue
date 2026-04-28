@@ -10,10 +10,14 @@
           <h1 class="sh-h">{{ weekLabel }}</h1>
         </div>
         <div class="sched-actions">
-          <button class="btn btn-ghost" @click="weekOffset--">&lt; Prev</button>
-          <button class="btn btn-ghost" @click="weekOffset++">Next &gt;</button>
+          <button class="btn btn-ghost" @click="weekOffset--">
+            <ChevronLeft size="13" />Prev
+          </button>
+          <button class="btn btn-ghost" @click="weekOffset++">
+            Next <ChevronRight size="13" />
+          </button>
           <button class="btn btn-primary" @click="showModal = true">
-            + Add task
+            <Plus size="13" /> Add task
           </button>
         </div>
       </div>
@@ -161,6 +165,7 @@ import { ref, computed } from "vue";
 import AppNavbar from "@/components/AppNavbar.vue";
 import AddTaskModal from "@/components/AddTaskModal.vue";
 import { useTaskStore } from "@/stores/index.js";
+import { ChevronLeft, ChevronRight, Plus } from "@lucide/vue";
 
 const tasks = useTaskStore();
 const showModal = ref(false);

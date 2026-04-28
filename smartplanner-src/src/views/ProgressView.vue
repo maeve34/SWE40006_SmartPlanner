@@ -9,9 +9,9 @@
           <p class="ph-sub">{{ weekLabel }} - Keep pushing</p>
         </div>
         <div class="prog-actions">
-          <button class="btn btn-ghost" @click="weekOffset--">&lt; Previous</button>
+          <button class="btn btn-ghost" @click="weekOffset--"><ChevronLeft size="13" /> Previous</button>
           <button class="btn btn-ghost" @click="weekOffset=0">This week</button>
-          <button class="btn btn-ghost" :disabled="weekOffset >= 0" @click="weekOffset++">Next &gt;</button>
+          <button class="btn btn-ghost" :disabled="weekOffset >= 0" @click="weekOffset++">Next <ChevronRight size="13" /></button>
         </div>
       </div>
 
@@ -92,6 +92,7 @@ import {
 } from 'chart.js'
 import AppNavbar from '@/components/AppNavbar.vue'
 import { useTaskStore } from '@/stores/index.js'
+import { ChevronRight, ChevronLeft } from '@lucide/vue'
 
 ChartJS.register(Title, Tooltip, Legend, BarElement, ArcElement, CategoryScale, LinearScale)
 
