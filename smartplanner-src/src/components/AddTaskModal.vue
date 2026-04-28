@@ -12,7 +12,7 @@
               </div>
               <div class="fg"><label>Task title</label><input v-model="form.title" type="text" placeholder="e.g. Portfolio – Part 1" autofocus/></div>
               <div class="frow">
-                <div class="fg"><label>Due date</label><input v-model="form.due" type="date"/></div>
+                <div class="fg"><label>Due date</label><input v-model="form.due" type="date" :min="todayISO"/></div>
                 <div class="fg"><label>Task type</label>
                   <select v-model="form.type">
                     <option value="">Select…</option>
@@ -92,7 +92,7 @@
                 <div v-for="(s,i) in form.subtasks.filter(x=>x)" :key="i" class="ss-card">
                   <div class="ss-name">{{ s }}</div>
                   <div class="ss-row">
-                    <div class="fg" style="flex:1.2"><label>Date</label><input type="date" v-model="sDates[i]"/></div>
+                    <div class="fg" style="flex:1.2"><label>Date</label><input type="date" v-model="sDates[i]" :min="todayISO" :max="form.due"/></div>
                     <div class="fg" style="flex:1"><label>Start</label><input type="time" v-model="sStart[i]"/></div>
                     <div class="fg" style="flex:1"><label>End</label><input type="time" v-model="sEnd[i]"/></div>
                   </div>
@@ -114,15 +114,25 @@
 import { ref, computed, watch } from 'vue'
 import { useTaskStore } from '@/stores/index.js'
 const props = defineProps({ show: Boolean })
-const emit  = defineEmits(['close'])
+const emit  = defineEmits(['close', 'saved'])
 const tasks = useTaskStore()
 const step = ref(1)
-const form = ref(fresh())
 const aiRows = ref([])
 const aiLoading = ref(false)
 const sDates = ref([]), sStart = ref([]), sEnd = ref([])
-function fresh() { return { title:'', due:'', type:'', priority:'medium', notes:'', subtasks:[] } }
+const todayISO = toLocalISO(new Date())
+function toLocalISO(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+function fresh() { return { title:'', due:todayISO, type:'', priority:'medium', notes:'', subtasks:[] } }
+const form = ref(fresh())
 watch(() => props.show, v => { if(v){ step.value=1; form.value=fresh(); aiRows.value=[]; sDates.value=[]; sStart.value=[]; sEnd.value=[] } })
+watch(() => form.value.due, due => {
+  sDates.value = sDates.value.map(date => date && date > due ? due : date)
+})
 const isComplex = computed(() => ['assignment','project'].includes(form.value.type))
 const ppill = { high:'pill-red', medium:'pill-amber', low:'pill-green' }
 function next() {
@@ -146,15 +156,22 @@ async function genAI() {
 function addSub(n) { if(!form.value.subtasks.includes(n)) form.value.subtasks.push(n) }
 function acceptAll() { aiRows.value.forEach(r=>addSub(r.name)) }
 function save() {
+  if (form.value.due < todayISO) return
   const cleanSubtasks = form.value.subtasks
     .map((title, i) => title.trim()
-      ? { id: Date.now() + i, title: title.trim(), date: sDates.value[i] || form.value.due, start: sStart.value[i] || '', end: sEnd.value[i] || '', done: false }
+      ? { id: Date.now() + i, title: title.trim(), date: clampSubtaskDate(sDates.value[i]), start: sStart.value[i] || '', end: sEnd.value[i] || '', done: false }
       : null
     )
     .filter(Boolean)
 
   tasks.addTask({ ...form.value, subtasks: cleanSubtasks })
+  emit('saved')
   emit('close')
+}
+function clampSubtaskDate(date) {
+  if (!date || date < todayISO) return form.value.due
+  if (date > form.value.due) return form.value.due
+  return date
 }
 </script>
 <style scoped>

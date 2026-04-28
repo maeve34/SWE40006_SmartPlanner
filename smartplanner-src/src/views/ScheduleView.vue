@@ -28,7 +28,7 @@
         </div>
 
         <div class="wg-tasks-row">
-          <div class="wg-time-label" style="padding-top:12px;font-size:11px;color:var(--muted)">Tasks</div>
+          <div class="wg-time-label task-label">Tasks</div>
           <div v-for="d in weekDays" :key="d.iso" class="wg-day-col" :class="{ today: d.isToday }">
             <div v-for="t in d.tasks" :key="t.id" class="wg-event" :class="typeClass(t.type)">
               <span class="ev-name">{{ t.title }}</span>
@@ -111,6 +111,18 @@ const legend = [
   { label:'Other', color:'rgba(106,106,106,.6)' },
 ]
 
+function toLocalISO(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function parseLocalDate(iso) {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
 function typeClass(type) {
   const map = { assignment:'ev-assign', reading:'ev-read', project:'ev-project', revision:'ev-revision', studying:'ev-studying', other:'ev-other' }
   return map[type] || 'ev-other'
@@ -118,7 +130,7 @@ function typeClass(type) {
 
 const weekDays = computed(() => {
   const today = new Date()
-  const todayISO = today.toISOString().split('T')[0]
+  const todayISO = toLocalISO(today)
   const base = new Date(today)
   base.setDate(today.getDate() - today.getDay() + weekOffset.value * 7)
   base.setHours(0,0,0,0)
@@ -126,7 +138,7 @@ const weekDays = computed(() => {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(base)
     d.setDate(base.getDate() + i)
-    const iso = d.toISOString().split('T')[0]
+    const iso = toLocalISO(d)
     const dayTasks = tasks.tasks.filter(t => t.due === iso)
     const daySubtasks = tasks.tasks.flatMap(t =>
       (t.subtasks || [])
@@ -148,9 +160,15 @@ const weekDays = computed(() => {
 })
 
 const weekLabel = computed(() => {
-  const s = new Date(weekDays.value[0].iso)
-  const e = new Date(weekDays.value[6].iso)
+  const s = parseLocalDate(weekDays.value[0].iso)
+  const e = parseLocalDate(weekDays.value[6].iso)
   return `${s.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} - ${e.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`
+})
+
+const pdfDateRange = computed(() => {
+  const s = parseLocalDate(weekDays.value[0].iso)
+  const e = parseLocalDate(weekDays.value[6].iso)
+  return `${s.toLocaleDateString('en-GB',{day:'numeric',month:'short'})}-${e.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`.replace(/\s+/g, '')
 })
 
 function exportPDF() {
@@ -160,7 +178,7 @@ function exportPDF() {
   html2pdf()
     .set({
       margin: 10,
-      filename: `smartplanner-${weekLabel.value.replace(/\s+/g, '-').toLowerCase()}.pdf`,
+      filename: `SmartPlanner:${pdfDateRange.value}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, backgroundColor: '#0F0F0F' },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
@@ -178,18 +196,19 @@ function exportPDF() {
 .sched-actions { display:flex;gap:6px;align-items:center; }
 .pdf-btn { display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:500;background:var(--blue-bg);color:#5A9ACA;border:1px solid var(--blue-bd);cursor:pointer;font-family:'Geist',sans-serif;transition:all .15s; }
 .pdf-btn:hover { background:rgba(58,107,154,.2); }
-.week-grid { background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px; }
-.wg-row { display:grid;grid-template-columns:52px repeat(7,1fr); }
+.week-grid { background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow-x:auto;overflow-y:hidden;margin-bottom:16px; }
+.wg-row { display:grid;grid-template-columns:76px repeat(7,minmax(112px,1fr));min-width:860px; }
 .wg-head-row { background:var(--surface2);border-bottom:1px solid var(--border); }
-.wg-time-label { border-right:1px solid var(--border); }
+.wg-time-label { border-right:1px solid var(--border);padding:10px 8px;display:flex;align-items:flex-start;justify-content:center;text-align:center; }
+.task-label { font-size:11px;color:var(--muted); }
 .wg-head-cell { padding:12px 8px;text-align:center;border-left:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:3px; }
 .wg-head-cell.today { background:rgba(78,124,95,.08); }
 .whc-dow { font-size:10px;font-weight:500;color:var(--muted);letter-spacing:.04em; }
 .whc-num { font-size:18px;font-weight:600;color:var(--muted2); }
 .wg-head-cell.today .whc-num { color:var(--accent); }
 .whc-count { font-size:10px;background:var(--accent-bg);color:#6BB896;border:1px solid var(--accent-bd);padding:1px 6px;border-radius:10px; }
-.wg-tasks-row { display:grid;grid-template-columns:52px repeat(7,1fr);min-height:120px; }
-.wg-day-col { border-left:1px solid var(--border);padding:6px;display:flex;flex-direction:column;gap:4px; }
+.wg-tasks-row { display:grid;grid-template-columns:76px repeat(7,minmax(112px,1fr));min-width:860px;min-height:160px; }
+.wg-day-col { border-left:1px solid var(--border);padding:8px;display:flex;flex-direction:column;gap:6px;min-height:160px; }
 .wg-day-col.today { background:rgba(78,124,95,.04); }
 .wg-event { border-radius:6px;padding:5px 7px;display:flex;flex-direction:column;gap:2px;cursor:default; }
 .ev-name { font-size:10px;font-weight:500;overflow:hidden;white-space:nowrap;text-overflow:ellipsis; }
@@ -202,7 +221,7 @@ function exportPDF() {
 .ev-other { background:var(--surface2);border-left:2px solid var(--border2);color:var(--muted2); }
 .ev-subtask { background:rgba(58,107,154,.14);border-left:2px solid var(--blue);color:#5A9ACA; }
 .ev-time { font-size:9px;color:var(--muted2); }
-.wg-empty { flex:1;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--border2);cursor:pointer;border-radius:6px;transition:all .15s; }
+.wg-empty { min-height:126px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--border2);cursor:pointer;border-radius:6px;transition:all .15s; }
 .wg-empty:hover { background:var(--surface2);color:var(--muted); }
 .legend { display:flex;gap:16px;margin-bottom:28px;flex-wrap:wrap; }
 .leg-item { display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted2); }

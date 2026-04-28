@@ -8,6 +8,11 @@
           <h1 class="ph-h">Your progress</h1>
           <p class="ph-sub">{{ weekLabel }} - Keep pushing</p>
         </div>
+        <div class="prog-actions">
+          <button class="btn btn-ghost" @click="weekOffset--">&lt; Previous</button>
+          <button class="btn btn-ghost" @click="weekOffset=0">This week</button>
+          <button class="btn btn-ghost" :disabled="weekOffset >= 0" @click="weekOffset++">Next &gt;</button>
+        </div>
       </div>
 
       <div class="stats-row">
@@ -73,7 +78,7 @@
   </div>
 </template>
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Bar, Doughnut } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -92,6 +97,7 @@ ChartJS.register(Title, Tooltip, Legend, BarElement, ArcElement, CategoryScale, 
 
 const tasks = useTaskStore()
 const ppill = { high:'pill-red', medium:'pill-amber', low:'pill-green' }
+const weekOffset = ref(0)
 
 const chartColors = {
   assignment: '#4E7C5F',
@@ -102,10 +108,22 @@ const chartColors = {
   other: '#6A6A6A'
 }
 
+function toLocalISO(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function parseLocalDate(iso) {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
 const weekRange = computed(() => {
   const now = new Date()
   const start = new Date(now)
-  start.setDate(now.getDate() - now.getDay())
+  start.setDate(now.getDate() - now.getDay() + weekOffset.value * 7)
   start.setHours(0,0,0,0)
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(start)
@@ -121,20 +139,22 @@ const weekLabel = computed(() => {
 })
 
 const stats = computed(() => [
-  { label: 'Tasks completed', value: tasks.totalDone, color: 'var(--accent)' },
-  { label: 'Still pending', value: tasks.totalPending, color: '#E05A4E' },
-  { label: 'High priority', value: tasks.highPriority, color: '#D4933C' },
-  { label: 'Total tasks', value: tasks.tasks.length, color: '#5A9ACA' },
+  { label: 'Tasks completed', value: weekTasks.value.filter(t => t.done).length, color: 'var(--accent)' },
+  { label: 'Still pending', value: weekTasks.value.filter(t => !t.done).length, color: '#E05A4E' },
+  { label: 'High priority', value: weekTasks.value.filter(t => t.priority === 'high' && !t.done).length, color: '#D4933C' },
+  { label: 'Total tasks', value: weekTasks.value.length, color: '#5A9ACA' },
 ])
 
-const taskTypes = computed(() => [...new Set(tasks.tasks.map(t => t.type || 'other'))])
+const weekISOSet = computed(() => new Set(weekRange.value.map(toLocalISO)))
+const weekTasks = computed(() => tasks.tasks.filter(t => weekISOSet.value.has(t.due)))
+const taskTypes = computed(() => [...new Set(weekTasks.value.map(t => t.type || 'other'))])
 
 const completionChartData = computed(() => ({
   labels: taskTypes.value.map(type => type.charAt(0).toUpperCase() + type.slice(1)),
   datasets: [{
     label: 'Completion %',
     data: taskTypes.value.map(type => {
-      const all = tasks.tasks.filter(t => (t.type || 'other') === type)
+      const all = weekTasks.value.filter(t => (t.type || 'other') === type)
       const done = all.filter(t => t.done)
       return all.length ? Math.round(done.length / all.length * 100) : 0
     }),
@@ -147,7 +167,7 @@ const timeChartData = computed(() => ({
   labels: taskTypes.value.map(type => type.charAt(0).toUpperCase() + type.slice(1)),
   datasets: [{
     label: 'Estimated hours',
-    data: taskTypes.value.map(type => tasks.tasks.filter(t => (t.type || 'other') === type).length * 1.5),
+    data: taskTypes.value.map(type => weekTasks.value.filter(t => (t.type || 'other') === type).length * 1.5),
     backgroundColor: taskTypes.value.map(type => chartColors[type] || chartColors.other),
     borderWidth: 0
   }]
@@ -158,7 +178,7 @@ const weeklyChartData = computed(() => ({
   datasets: [{
     label: 'Tasks and subtasks',
     data: weekRange.value.map(day => {
-      const iso = day.toISOString().split('T')[0]
+      const iso = toLocalISO(day)
       const mainTasks = tasks.tasks.filter(t => t.due === iso).length
       const subtasks = tasks.tasks.flatMap(t => t.subtasks || []).filter(s => s.date === iso).length
       return mainTasks + subtasks
@@ -170,9 +190,9 @@ const weeklyChartData = computed(() => ({
 
 const scheduledSubtasks = computed(() => tasks.tasks.flatMap(t =>
   (t.subtasks || []).map(s => ({ ...s, key: `${t.id}-${s.id}`, parentId: t.id, parentTitle: t.title }))
-).filter(s => s.date).sort((a, b) => `${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`)))
+).filter(s => s.date && weekISOSet.value.has(s.date)).sort((a, b) => `${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`)))
 
-const incompleteTasks = computed(() => tasks.tasks.filter(t => !t.done))
+const incompleteTasks = computed(() => weekTasks.value.filter(t => !t.done))
 
 const insightText = computed(() => {
   const values = weeklyChartData.value.datasets[0].data
@@ -206,13 +226,15 @@ const doughnutOptions = {
 
 function formatDate(iso) {
   if(!iso) return ''
-  return new Date(iso).toLocaleDateString('en-GB',{day:'numeric',month:'short'})
+  return parseLocalDate(iso).toLocaleDateString('en-GB',{day:'numeric',month:'short'})
 }
 </script>
 <style scoped>
 .prog-page { min-height:100vh;background:var(--bg); }
 .prog-wrap { max-width:1100px;margin:0 auto;padding:80px 28px 60px; }
-.prog-header { margin-bottom:24px; }
+.prog-header { margin-bottom:24px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px; }
+.prog-actions { display:flex;gap:8px; }
+.prog-actions .btn:disabled { opacity:.4;cursor:not-allowed; }
 .ph-eye { font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px; }
 .ph-h { font-family:'Instrument Serif',serif;font-size:30px;font-weight:400;color:var(--text); }
 .ph-sub { font-size:13px;color:var(--muted2);margin-top:4px; }
