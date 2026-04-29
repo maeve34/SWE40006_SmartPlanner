@@ -209,10 +209,6 @@
               Add your first task
             </button>
           </div>
-
-          <button class="add-row" @click="showModal = true">
-            + Add new task
-          </button>
         </div>
 
         <aside class="dash-side">
@@ -269,7 +265,7 @@
             style="width: 100%"
             @click="showModal = true"
           >
-            + Add task
+            <Plus size="13"/> Add task
           </button>
         </aside>
       </div>

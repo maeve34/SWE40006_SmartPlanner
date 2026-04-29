@@ -82,6 +82,7 @@ app.post("/api/ai/subtasks", async (req, res) => {
       messages: [{ role: "user", content: prompt }],
     });
 
+    const text = response.choices[0].message.content;
     const match = text.match(/\[[\s\S]*\]/);
 
     // parse JSON to ensure JSON is valid
