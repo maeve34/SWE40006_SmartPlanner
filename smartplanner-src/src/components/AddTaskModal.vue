@@ -194,31 +194,43 @@
               </div>
               <div class="ss-list">
                 <div
-                  v-for="(s, i) in form.subtasks.filter((x) => x)"
-                  :key="i"
+                  v-for="item in scheduledSubtasks"
+                  :key="item.index"
                   class="ss-card"
                 >
-                  <div class="ss-name">{{ s }}</div>
+                  <div class="ss-name">{{ item.title }}</div>
                   <div class="ss-row">
                     <div class="fg" style="flex: 1.2">
                       <label>Date</label>
                       <input
                         type="date"
-                        v-model="sDates[i]"
+                        v-model="sDates[item.index]"
                         :min="todayISO"
                         :max="form.due"
                       />
                     </div>
                     <div class="fg" style="flex: 1">
                       <label>Start</label>
-                      <input type="time" v-model="sStart[i]" />
+                      <input
+                        type="time"
+                        v-model="sStart[item.index]"
+                        :min="minSubtaskTime(sDates[item.index])"
+                      />
                     </div>
                     <div class="fg" style="flex: 1">
-                      <label>End</label><input type="time" v-model="sEnd[i]" />
+                      <label>End</label
+                      ><input
+                        type="time"
+                        v-model="sEnd[item.index]"
+                        :min="minSubtaskEndTime(item.index)"
+                      />
                     </div>
                   </div>
                 </div>
               </div>
+              <p v-if="scheduleError" class="error-text">
+                {{ scheduleError }}
+              </p>
               <div class="mactions">
                 <button class="btn btn-ghost" @click="step = 2">
                   <ChevronLeft size="13" /> Back
@@ -256,6 +268,7 @@ const aiRows = ref([]);
 const aiLoading = ref(false);
 const aiPrompt = ref();
 const aiError = ref("");
+const scheduleError = ref("");
 const sDates = ref([]),
   sStart = ref([]),
   sEnd = ref([]);
@@ -284,6 +297,7 @@ watch(
       step.value = 1;
       form.value = fresh(props.defaultDate);
       aiRows.value = [];
+      scheduleError.value = "";
       sDates.value = [];
       sStart.value = [];
       sEnd.value = [];
@@ -310,6 +324,11 @@ watch(
 );
 const isComplex = computed(() =>
   ["assignment", "project"].includes(form.value.type),
+);
+const scheduledSubtasks = computed(() =>
+  form.value.subtasks
+    .map((title, index) => ({ title: title.trim(), index }))
+    .filter((item) => item.title),
 );
 const ppill = { high: "pill-red", medium: "pill-amber", low: "pill-green" };
 
@@ -350,9 +369,10 @@ function next() {
       save();
       return;
     }
-    form.value.subtasks.forEach((_, i) => {
-      if (!sDates.value[i]) sDates.value[i] = form.value.due;
+    scheduledSubtasks.value.forEach(({ index }) => {
+      if (!sDates.value[index]) sDates.value[index] = form.value.due;
     });
+    scheduleError.value = "";
     step.value = 3;
     return;
   }
@@ -428,6 +448,9 @@ function save() {
   }
 
   error.value = "";
+  scheduleError.value = "";
+
+  if (!validateSubtaskSchedule()) return;
 
   const cleanSubtasks = form.value.subtasks
     .map((title, i) =>
@@ -458,6 +481,53 @@ function clampSubtaskDate(date) {
   if (date > form.value.due) return form.value.due;
 
   return date;
+}
+
+function currentTimeHHMM() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, "0")}:${String(
+    now.getMinutes(),
+  ).padStart(2, "0")}`;
+}
+
+function minSubtaskTime(date) {
+  return date === todayISO ? currentTimeHHMM() : undefined;
+}
+
+function minSubtaskEndTime(index) {
+  const date = sDates.value[index];
+  const start = sStart.value[index];
+  const todayMin = minSubtaskTime(date);
+
+  if (start && todayMin) return start > todayMin ? start : todayMin;
+  return start || todayMin;
+}
+
+function validateSubtaskSchedule() {
+  const nowTime = currentTimeHHMM();
+
+  for (const { title, index } of scheduledSubtasks.value) {
+    const date = clampSubtaskDate(sDates.value[index]);
+    const start = sStart.value[index] || "";
+    const end = sEnd.value[index] || "";
+
+    if (date === todayISO && start && start < nowTime) {
+      scheduleError.value = `"${title}" cannot start in the past.`;
+      return false;
+    }
+
+    if (date === todayISO && end && end < nowTime) {
+      scheduleError.value = `"${title}" cannot end in the past.`;
+      return false;
+    }
+
+    if (start && end && end <= start) {
+      scheduleError.value = `"${title}" must end after it starts.`;
+      return false;
+    }
+  }
+
+  return true;
 }
 </script>
 <style scoped>
