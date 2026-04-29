@@ -37,7 +37,6 @@
           <p class="cc-label">Weekly task load</p>
           <Bar :data="weeklyChartData" :options="barOptions"/>
           <div class="ai-insight">
-            <span class="ai-tag">AI Insight</span>
             <p>{{ insightText }}</p>
           </div>
         </div>
