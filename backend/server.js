@@ -32,6 +32,11 @@ app.use(
 
 app.use(express.json());
 
+app.get("/", (req, res) => {
+  res.send("SmartPlanner backend is running");
+});
+
+
 // Azure OpenAI Service from GitHub to generate subtasks based on task description
 const openai = new OpenAI({
   apiKey: process.env.GITHUB_OPENAI_API_KEY,
