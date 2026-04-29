@@ -26,13 +26,29 @@
             <h2 class="fc-title">Welcome back</h2>
             <p class="fc-sub">Sign in to your account</p>
             <div class="fg">
-              <label>Email address</label>
-              <input v-model="email" type="email" placeholder="you@example.com" @keyup.enter="handleLogin"/>
+              <label>Email address or username</label>
+              <input v-model="email" type="text" placeholder="you@example.com or meiqi" @keyup.enter="handleLogin"/>
               <div v-if="error.email" class="err-msg">{{ error.email }}</div>
             </div>
             <div class="fg">
               <label>Password</label>
-              <input v-model="password" type="password" placeholder="••••••••" @keyup.enter="handleLogin"/>
+              <div class="password-field">
+                <input
+                  v-model="password"
+                  :type="showPassword ? 'text' : 'password'"
+                  placeholder="••••••••"
+                  @keyup.enter="handleLogin"
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  :aria-label="showPassword ? 'Hide password' : 'Show password'"
+                  @click="showPassword = !showPassword"
+                >
+                  <EyeOff v-if="showPassword" size="16" />
+                  <Eye v-else size="16" />
+                </button>
+              </div>
               <div v-if="error.password" class="err-msg">{{ error.password }}</div>
             </div>
             <div v-if="error.all" class="err-msg">{{ error.all }}</div>
@@ -57,12 +73,42 @@
             </div>
             <div class="fg">
               <label>Password</label>
-              <input v-model="password" type="password" placeholder="••••••••"/>
+              <div class="password-field">
+                <input
+                  v-model="password"
+                  :type="showRegisterPassword ? 'text' : 'password'"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  :aria-label="showRegisterPassword ? 'Hide password' : 'Show password'"
+                  @click="showRegisterPassword = !showRegisterPassword"
+                >
+                  <EyeOff v-if="showRegisterPassword" size="16" />
+                  <Eye v-else size="16" />
+                </button>
+              </div>
               <div v-if="error.password" class="err-msg">{{ error.password}}</div>
             </div>
             <div class="fg">
               <label>Confirm Password</label>
-              <input v-model="cfmPassword" type="password" placeholder="••••••••"/>
+              <div class="password-field">
+                <input
+                  v-model="cfmPassword"
+                  :type="showConfirmPassword ? 'text' : 'password'"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  :aria-label="showConfirmPassword ? 'Hide password' : 'Show password'"
+                  @click="showConfirmPassword = !showConfirmPassword"
+                >
+                  <EyeOff v-if="showConfirmPassword" size="16" />
+                  <Eye v-else size="16" />
+                </button>
+              </div>
               <div v-if="error.cfmPassword" class="err-msg">{{ error.cfmPassword }}</div>
             </div>
 
@@ -79,7 +125,7 @@
   import { ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { useAuthStore } from '@/stores/index.js'
-  import { ArrowRight } from '@lucide/vue';
+  import { ArrowRight, Eye, EyeOff } from '@lucide/vue';
   const auth = useAuthStore()
   const router = useRouter()
   const mode = ref('login')
@@ -95,6 +141,10 @@
   const email = ref('')
   const password = ref('')
   const cfmPassword = ref('')
+  const showPassword = ref(false)
+  const showRegisterPassword = ref(false)
+  const showConfirmPassword = ref(false)
+  const passwordSymbolPattern = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/
   const features = [
     { text: 'Weekly view — one week at a time' },
     { text: 'AI breaks tasks into subtasks automatically' },
@@ -111,6 +161,23 @@
     }
     success.value = ''
   }
+  function validateLoginIdentifier(value) {
+    if (!value) return 'Please fill in your email address or username.'
+    if (value.includes('@')) {
+      return /^\S+@\S+\.\S+$/.test(value) ? '' : 'Enter a valid email address, for example you@example.com.'
+    }
+    return /^[A-Za-z0-9._-]{3,}$/.test(value)
+      ? ''
+      : 'Username must be at least 3 characters and use only letters, numbers, dots, dashes, or underscores.'
+  }
+  function validatePassword(value) {
+    if (!value) return 'Please fill in your password.'
+    if (value.length < 8) return 'Password must be at least 8 characters long.'
+    if (!passwordSymbolPattern.test(value)) {
+      return 'Password must include at least one symbol, for example ! @ # $ % ^ & * ? _ - .'
+    }
+    return ''
+  }
   function handleLogin() {
     resetErrors()
     if (!email.value && !password.value) { 
@@ -118,22 +185,17 @@
       return
     }
     
-    if (!email.value){
-      error.value.email = 'Please fill in your email.';
-    } else if(!/^\S+@\S+\.\S+$/.test(email.value)) {
-      error.value.email = 'Invalid email format';
-    }
-    
-    if (!password.value){
-      error.value.password = 'Please fill in your password.';
-    } else if(!/^(?=.*[$%^&*]).{8,}$/.test(password.value)) {
-      error.value.password = 'Invalid password format';
-    }
+    error.value.email = validateLoginIdentifier(email.value)
+    error.value.password = validatePassword(password.value)
 
     // stop if any field 
     if (error.value.email || error.value.password) return
-      
-    auth.login(email.value.split('@')[0], email.value)
+
+    const result = auth.login(email.value, password.value)
+    if (!result.ok) {
+      error.value.all = result.message
+      return
+    }
     router.push('/dashboard')
   }
   function handleRegister() {
@@ -152,11 +214,7 @@
       error.value.email = 'Invalid email format.';
     } 
 
-    if (!password.value){
-      error.value.password = 'Please fill in your password.';
-    } else if(!/^(?=.*[$%^&*]).{8,}$/.test(password.value)) {
-      error.value.password = 'Invalid password format.';
-    }
+    error.value.password = validatePassword(password.value)
 
     if (!cfmPassword.value){
       error.value.cfmPassword = 'Please confirm your password.';
@@ -170,6 +228,12 @@
       error.value.password ||
       error.value.cfmPassword
     ) return
+
+    const result = auth.register(name.value, email.value, password.value)
+    if (!result.ok) {
+      error.value.email = result.message
+      return
+    }
 
     // switch mode back to prompt user to login after successful registration
     success.value = 'Account created! Please sign in.'
@@ -286,6 +350,34 @@
 }
 .fg { 
   margin-bottom:14px; 
+}
+.password-field {
+  position: relative;
+}
+.password-field input {
+  padding-right: 42px;
+}
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--muted2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 5px;
+}
+.password-toggle:hover,
+.password-toggle:focus-visible {
+  color: var(--text);
+  background: var(--surface3);
+  outline: none;
 }
 .err-msg { 
   font-size:12px;

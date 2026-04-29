@@ -396,6 +396,12 @@ const weekLabel = computed(() => {
   return `${s.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} - ${e.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
 });
 
+const weekTasks = computed(() => {
+  const start = weekDays.value[0].iso;
+  const end = weekDays.value[6].iso;
+  return tasks.tasks.filter((t) => t.due >= start && t.due <= end);
+});
+
 function shiftWeek(dir) {
   if (dir < 0 && !canGoPrevious.value) return;
   weekOffset.value += dir;
@@ -418,13 +424,13 @@ function formatDate(iso) {
 
 // Filter tasks
 const filteredTasks = computed(() => {
-  let list = activeTasks.value;
+  let list = weekTasks.value;
   switch (activeFilter.value) {
     case "selected":
-      list = activeTasks.value.filter((t) => t.due === selectedDate.value);
+      list = weekTasks.value.filter((t) => t.due === selectedDate.value);
       break;
     case "today":
-      list = activeTasks.value.filter((t) => t.due === todayISO.value);
+      list = weekTasks.value.filter((t) => t.due === todayISO.value);
       break;
     case "high":
       list = list.filter((t) => t.priority === "high");

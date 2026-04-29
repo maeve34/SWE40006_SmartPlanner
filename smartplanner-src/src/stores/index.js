@@ -12,13 +12,65 @@ function readJSON(key, fallback) {
 }
 
 export const useAuthStore = defineStore('auth', () => {
+  const accountStorageKey = 'sp_accounts'
   const user = ref(readJSON('sp_user', null))
+  const accounts = ref(readJSON(accountStorageKey, []))
 
-  const isLoggedIn = computed(() => !!user.value)
+  const isLoggedIn = computed(() =>
+    !!user.value && !!findAccount(user.value.email || user.value.username || user.value.name)
+  )
 
-  function login(name, email) {
-    user.value = { name, email, avatar: name.charAt(0).toUpperCase() }
+  function normalizeIdentifier(value) {
+    return value.trim().toLowerCase()
+  }
+
+  function persistAccounts() {
+    localStorage.setItem(accountStorageKey, JSON.stringify(accounts.value))
+  }
+
+  function findAccount(identifier) {
+    const normalized = normalizeIdentifier(identifier)
+    return accounts.value.find(account =>
+      account.email.toLowerCase() === normalized ||
+      account.username.toLowerCase() === normalized
+    )
+  }
+
+  function register(name, email, password) {
+    const cleanName = name.trim()
+    const cleanEmail = email.trim()
+    const username = cleanEmail.split('@')[0]
+
+    if (findAccount(cleanEmail) || findAccount(username)) {
+      return { ok: false, message: 'An account with this email or username already exists.' }
+    }
+
+    accounts.value = [
+      ...accounts.value,
+      { name: cleanName, email: cleanEmail, username, password }
+    ]
+    persistAccounts()
+    return { ok: true }
+  }
+
+  function login(identifier, password) {
+    const account = findAccount(identifier)
+    if (!account) {
+      return { ok: false, message: 'No account found with that email address or username.' }
+    }
+    if (account.password !== password) {
+      return { ok: false, message: 'Incorrect password for this account.' }
+    }
+
+    const name = account.name || account.username
+    user.value = {
+      name,
+      email: account.email,
+      username: account.username,
+      avatar: name.charAt(0).toUpperCase()
+    }
     localStorage.setItem('sp_user', JSON.stringify(user.value))
+    return { ok: true }
   }
 
   function logout() {
@@ -26,7 +78,7 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('sp_user')
   }
 
-  return { user, isLoggedIn, login, logout }
+  return { user, isLoggedIn, register, login, logout }
 })
 
 export const useTaskStore = defineStore('tasks', () => {
