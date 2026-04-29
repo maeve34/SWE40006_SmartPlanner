@@ -108,11 +108,14 @@
                   form.priority
                 }}</span>
               </div>
+              <div class="prompt-container">
+                <label>Describe your task</label>
+                <textarea v-model="aiPrompt" placeholder="eg: This assignment requires the development of a DevOps pipeline.."></textarea>
+              </div>
+              <p v-if="aiError" class="error-text">{{ aiError }}</p>
               <div class="ai-box">
                 <div class="ai-hd">
-                  <span class="ai-tag"
-                    ><Sparkle size="10" /> AI SUBTASK GENERATOR</span
-                  >
+                  <span class="ai-tag"><Sparkle size="10" /> AI SUBTASK GENERATOR</span>
                   <button
                     class="ai-btn"
                     :class="{ loading: aiLoading }"
@@ -123,8 +126,7 @@
                   </button>
                 </div>
                 <p class="ai-desc">
-                  Automatically breaks your task into subtasks with time
-                  estimates via OpenAI.
+                  Automatically breaks your task into subtasks with time estimates via OpenAI.
                 </p>
                 <div v-if="aiRows.length" class="ai-list">
                   <div v-for="(r, i) in aiRows" :key="i" class="ai-row">
@@ -245,13 +247,15 @@ import {
   Plus,
   Calendar,
 } from "@lucide/vue";
-const props = defineProps({ show: Boolean, defaultDate: String, });
+const props = defineProps({ show: Boolean, defaultDate: String });
 const emit = defineEmits(["close", "saved"]);
 const tasks = useTaskStore();
 const step = ref(1);
 const error = ref("");
 const aiRows = ref([]);
 const aiLoading = ref(false);
+const aiPrompt = ref();
+const aiError = ref("");
 const sDates = ref([]),
   sStart = ref([]),
   sEnd = ref([]);
@@ -296,18 +300,21 @@ watch(
 );
 
 // clear error message when user re-pick valid date
-watch(() => form.value.due, (val) => {
-  if (val >= todayISO) {
-    error.value = "";
-  }
-});
+watch(
+  () => form.value.due,
+  (val) => {
+    if (val >= todayISO) {
+      error.value = "";
+    }
+  },
+);
 const isComplex = computed(() =>
   ["assignment", "project"].includes(form.value.type),
 );
 const ppill = { high: "pill-red", medium: "pill-amber", low: "pill-green" };
 
 // Display invalid date error message on step 1
-function validateStep1Date(){
+function validateStep1Date() {
   if (form.value.due < todayISO) {
     error.value = "Due date cannot be in the past.";
     return false;
@@ -321,18 +328,18 @@ function validateStep1Date(){
 function next() {
   // step 1 validation
   if (step.value === 1) {
-      if (!validateStep1Date()) return;
+    if (!validateStep1Date()) return;
 
-      // simple task: save
-      if (!isComplex.value) {
-        save();
-        return;
-      }
-
-      // complex task: go step 2 ONLY if valid
-      step.value = 2;
+    // simple task: save
+    if (!isComplex.value) {
+      save();
       return;
     }
+
+    // complex task: go step 2 ONLY if valid
+    step.value = 2;
+    return;
+  }
 
   // step 2 validation
   if (step.value === 2) {
@@ -351,16 +358,57 @@ function next() {
   }
 }
 
-// LATER NEED IMPLEMENT AI TO GENERATE SUBTASKS
+let lastCall = 0;
+
+// use Github OpenAI gpt-4o model to breakdown tasks
 async function genAI() {
-  if (!form.value.title) return;
-  aiLoading.value = true;
-  await new Promise((r) => setTimeout(r, 1100));
-  aiRows.value = [
-    { name: "📌 Research & planning", est: "~1.5 hr" },
-    { name: "💻 Implementation", est: "~3 hr" },
-    { name: "✍️ Write-up & review", est: "~1.5 hr" },
-  ];
+  // prevent spam of concurrent use of the service
+  const now = Date.now();
+  if (now - lastCall < 3000) return; // 3s cooldown
+
+  aiError.value = "";
+
+  lastCall = now;
+    if (!form.value.title) {
+    aiError.value = "Task title is required.";
+    return;
+  }
+
+  // error validation for task description
+  if (!aiPrompt.value || !aiPrompt.value.trim()) {
+    aiError.value = "Please describe your task before generating AI subtasks.";
+    return;
+  }
+
+  aiLoading.value = true; 
+
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/ai/subtasks`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        title: form.value.title,
+        description: aiPrompt.value,
+      }),
+    });
+
+    const data = await res.json();
+    console.log("AI response:", data); // debug
+
+    // debug
+    if (!Array.isArray(data)) {
+      aiError.value = data.error || "Invalid AI response";
+      aiRows.value = [];
+      return;
+    }
+
+    aiRows.value = data;
+  } catch (err) {
+    console.error(err);
+  }
+
   aiLoading.value = false;
 }
 
@@ -374,7 +422,7 @@ function acceptAll() {
 
 // Display error message when selected due date is already past when user try to save task
 function save() {
-  if (form.value.due < todayISO){
+  if (form.value.due < todayISO) {
     error.value = "Due date cannot be in the past.";
     return;
   }
@@ -542,6 +590,9 @@ function clampSubtaskDate(date) {
   font-weight: 500;
   color: var(--text);
   flex: 1;
+}
+.prompt-container{
+  margin-bottom: 15px;
 }
 .ai-box {
   background: linear-gradient(
@@ -749,13 +800,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
   cursor: pointer;
 }
-.error-text { 
-  font-size:12px;
-  color:#E05A4E;
-  background:var(--red-bg);
-  border:1px solid var(--red-bd);
-  border-radius:7px;
-  padding:8px 12px;
-  margin-bottom:12px; 
+.error-text {
+  font-size: 12px;
+  color: #e05a4e;
+  background: var(--red-bg);
+  border: 1px solid var(--red-bd);
+  border-radius: 7px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
 }
 </style>
