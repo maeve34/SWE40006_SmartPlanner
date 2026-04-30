@@ -82,8 +82,8 @@
             </div>
 
             <div class="detail-actions">
-              <button class="btn btn-ghost" @click="selectedTask = null">
-                Close
+              <button class="btn btn-ghost" @click="handleDeleteTask">
+                Delete Task
               </button>
               <button
                 class="btn btn-primary"
@@ -191,12 +191,7 @@
                 t.priority
               }}</span>
             </div>
-            </TransitionGroup>
-            <div class="task-acts">
-              <button class="tact-del" @click="tasks.deleteTask(t.id)">
-                <X size="12" />
-              </button>
-            </div>
+          </TransitionGroup>
 
           <div v-if="filteredTasks.length === 0" class="empty-state">
             <p class="es-icon"><ClipboardList /></p>
@@ -464,6 +459,13 @@ const filteredTasks = computed(() => {
   }
   return list;
 });
+
+function handleDeleteTask() {
+  if (!selectedTask.value) return;
+
+  tasks.deleteTask(selectedTask.value.id);
+  selectedTask.value = null;
+}
 
 const upcomingDeadlines = computed(() =>
   activeTasks.value.sort((a, b) => a.due.localeCompare(b.due)).slice(0, 5),
