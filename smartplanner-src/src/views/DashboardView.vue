@@ -11,17 +11,22 @@
     <Teleport to="body">
       <Transition name="detail-fade">
         <div
-          v-if="selectedTask"
+          v-if="selectedItem"
           class="detail-overlay"
-          @click.self="selectedTask = null"
+          @click.self="selectedItem = null"
         >
           <div class="detail-modal">
             <div class="detail-head">
               <div>
-                <p class="detail-kicker">{{ selectedTask.type || "task" }}</p>
-                <h2 class="detail-title">{{ selectedTask.title }}</h2>
+                <p class="detail-kicker">{{ selectedItem.type || "task" }}</p>
+                <h2 class="detail-title">
+                  {{ selectedItem.title }}
+                </h2>
+                <p v-if="selectedItem.isSubtask" class="detail-kicker">
+                  Subtask of {{ selectedItem.parentTitle }}
+                </p>
               </div>
-              <button class="detail-close" @click="selectedTask = null">
+              <button class="detail-close" @click="selectedItem = null">
                 <X size="13"/>
               </button>
             </div>
@@ -29,18 +34,18 @@
             <div class="detail-grid">
               <div class="detail-block">
                 <span>Due date</span>
-                <strong>{{ formatDate(selectedTask.due) }}</strong>
+                <strong>{{ formatDate(selectedItem.isSubtask ? selectedItem.date : selectedItem.due) }}</strong>
               </div>
               <div class="detail-block">
                 <span>Priority</span>
-                <strong>{{ selectedTask.priority }}</strong>
+                <strong>{{ selectedItem.priority }}</strong>
               </div>
               <div class="detail-block">
                 <span>Status</span>
                 <strong>{{
-                  selectedTask.done
+                  selectedItem.done
                     ? "Completed"
-                    : selectedTask.due < todayISO
+                    : (selectedItem.isSubtask ? selectedItem.date : selectedItem.due) < todayISO
                       ? "Overdue"
                       : "Active"
                 }}</strong>
@@ -50,22 +55,22 @@
             <div class="detail-section">
               <p class="detail-label">Notes</p>
               <p class="detail-copy">
-                {{ selectedTask.notes || "No notes added." }}
+                {{ selectedItem.notes || "No notes added." }}
               </p>
             </div>
 
-            <div class="detail-section">
+            <div v-if="!selectedItem.isSubtask" class="detail-section">
               <p class="detail-label">Subtasks</p>
-              <div v-if="selectedTask.subtasks?.length" class="detail-subtasks">
+              <div v-if="!selectedItem.isSubtask && selectedItem.subtasks?.length" class="detail-subtasks">
                 <div
-                  v-for="s in selectedTask.subtasks"
+                  v-for="s in selectedItem.subtasks"
                   :key="s.id"
                   class="detail-subtask"
                   :class="{ done: s.done }"
                 >
                   <button
                     class="task-cb"
-                    @click="tasks.toggleSubtask(selectedTask.id, s.id)"
+                    @click="tasks.toggleSubtask(selectedItem.id, s.id)"
                   >
                     <span v-if="s.done" class="cb-check"><Check size="13"/></span>
                   </button>
@@ -82,14 +87,11 @@
             </div>
 
             <div class="detail-actions">
-              <button class="btn btn-ghost" @click="handleDeleteTask">
+              <button class="btn btn-ghost" @click="handleDelete">
                 Delete Task
               </button>
-              <button
-                class="btn btn-primary"
-                @click="tasks.toggleDone(selectedTask.id)"
-              >
-                {{ selectedTask.done ? "Mark incomplete" : "Mark done" }}
+              <button class="btn btn-primary" @click="handleToggle">
+                {{ selectedItem.done ? "Mark incomplete" : "Mark done" }}
               </button>
             </div>
           </div>
@@ -169,22 +171,31 @@
           <TransitionGroup name="task-list" tag="div" class="task-list">
             <div
               v-for="t in filteredTasks"
-              :key="t.id"
+              :key="t.isSubtask ? `sub-${t.id}-${t.parentId}` : t.id"
               class="card task-item"
-              :class="{ done: t.done }"
-              @click="selectedTask = t"
+              :class="{ done: t.done, subtask: t.isSubtask }"
+              @click="openItem(t)"
             >
-              <button class="task-cb" @click.stop="tasks.toggleDone(t.id)">
+              <button class="task-cb" @click.stop="t.isSubtask 
+                ? tasks.toggleSubtask(t.parentId, t.id)
+                : tasks.toggleDone(t.id)">
+                
                 <span v-if="t.done" class="cb-check"><Check size="13"/></span>
               </button>
               <div class="task-body">
                 <div class="task-name">{{ t.title }}</div>
                 <div class="task-meta">
-                  <span><Calendar size="12" /> {{ formatDate(t.due) }}</span>
+                  <span><Calendar size="12" /> {{ formatDate(t.isSubtask ? t.date : t.due) }}</span>
                   <span v-if="t.type"> - {{ t.type }}</span>
-                  <span v-if="t.subtasks?.length" class="pill pill-gray"
-                    >{{ t.subtasks.length }} subtasks</span
-                  >
+
+                  <!-- show which main task it belongs to if task is a subtask -->
+                  <span v-if="t.isSubtask" class="pill pill-gray">
+                    {{ t.parentTitle }}
+                  </span>
+
+                  <span v-if="!t.isSubtask && t.subtasks?.length" class="pill pill-gray">
+                    {{ t.subtasks.length }} subtasks
+                  </span>
                 </div>
               </div>
               <span class="pill" :class="ppill[t.priority]">{{
@@ -291,7 +302,8 @@ const showModal = ref(false);
 const activeFilter = ref("all");
 const selectedDate = ref(toLocalISO(new Date()));
 const weekOffset = ref(0);
-const selectedTask = ref(null);
+// const selectedTask = ref(null);
+const selectedItem = ref(null);
 
 const ppill = {
   high: "pill-red",
@@ -313,6 +325,7 @@ const filters = [
   { key: "other", label: "Other" },
   { key: "completed", label: "Completed" },
   { key: "incomplete", label: "Incomplete" },
+  { key: "subtasks", label: "Subtasks" },
 ];
 
 function toLocalISO(date) {
@@ -369,7 +382,11 @@ const weekDays = computed(() => {
       num: d.getDate(),
       isToday: iso === todayISO.value,
       isPast: iso < todayISO.value,
-      hasTasks: tasks.tasksForDate(iso).length > 0,
+      // consider main tasks AND subtasks
+      hasTasks: tasks.tasks.some(t => t.due === iso) ||
+      tasks.tasks.some(t =>
+        (t.subtasks || []).some(s => s.date === iso)
+      )
     };
   });
 });
@@ -381,25 +398,29 @@ const canGoPrevious = computed(() => {
   return toLocalISO(previousEnd) >= todayISO.value;
 });
 
+// return week laballed in  eg. 3 May - 9 May format 
 const weekLabel = computed(() => {
   const s = parseLocalDate(weekDays.value[0].iso);
   const e = parseLocalDate(weekDays.value[6].iso);
   return `${s.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} - ${e.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
 });
 
-const weekTasks = computed(() => {
+// return all tasks within a week including subtasks
+const weekWorkItems = computed(() => {
   const start = weekDays.value[0].iso;
   const end = weekDays.value[6].iso;
-  return tasks.tasks.filter((t) => t.due >= start && t.due <= end);
+
+  return tasks.getWeekWorkItems(start, end);
 });
+
 const weekStats = computed(() => {
   return {
-    done: weekTasks.value.filter((task) => task.done).length,
-    pending: weekTasks.value.filter((task) => !task.done).length,
-    highPriority: weekTasks.value.filter(
-      (task) => task.priority === "high" && !task.done,
+    done: weekWorkItems.value.filter(i => i.done).length,
+    pending: weekWorkItems.value.filter(i => !i.done).length,
+    highPriority: weekWorkItems.value.filter(
+      i => i.priority === "high" && !i.done
     ).length,
-    total: weekTasks.value.length,
+    total: weekWorkItems.value.length,
   };
 });
 
@@ -423,58 +444,110 @@ function formatDate(iso) {
   });
 }
 
+// open handler 
+function openItem(item) {
+  selectedItem.value = item;
+}
+
+// create display list to display main tasks AND subtasks
+const displayItems = computed(() => {
+  const start = weekDays.value[0].iso;
+  const end = weekDays.value[6].iso;
+
+  // main tasks
+  const taskItems = tasks.tasks
+    .filter(t => t.due >= start && t.due <= end)
+    .map(t => ({
+      ...t,
+      isSubtask: false
+    }));
+
+  // subtasks
+  const subtaskItems = tasks.tasks.flatMap(t =>
+    (t.subtasks || [])
+      .filter(s => s.date && s.date >= start && s.date <= end)
+      .map(s => ({
+        ...s,
+        isSubtask: true,
+        parentId: t.id,
+        parentTitle: t.title,
+        priority: t.priority,
+        type: t.type || "other"
+      }))
+  );
+
+  return [...taskItems, ...subtaskItems];
+});
+
 // Filter tasks
 const filteredTasks = computed(() => {
-  let list = weekTasks.value;
+  let list = displayItems.value;
+
   switch (activeFilter.value) {
     case "selected":
-      list = weekTasks.value.filter((t) => t.due === selectedDate.value);
+      list = list.filter(i =>
+        (i.isSubtask ? i.date : i.due) === selectedDate.value
+      );
       break;
+
     case "today":
-      list = weekTasks.value.filter((t) => t.due === todayISO.value);
+      list = list.filter(i =>
+        (i.isSubtask ? i.date : i.due) === todayISO.value
+      );
       break;
+
     case "high":
-      list = list.filter((t) => t.priority === "high");
-      break;
     case "medium":
-      list = list.filter((t) => t.priority === "medium");
-      break;
     case "low":
-      list = list.filter((t) => t.priority === "low");
+      list = list.filter(i => i.priority === activeFilter.value);
       break;
-    case "reading":
-      list = list.filter((t) => t.type === "reading");
-      break;
-    case "studying":
-      list = list.filter((t) => t.type === "studying");
-      break;
-    case "revision":
-      list = list.filter((t) => t.type === "revision");
-      break;
-    case "assignment":
-      list = list.filter((t) => t.type === "assignment");
-      break;
-    case "project":
-      list = list.filter((t) => t.type === "project");
-      break;
-    case "other":
-      list = list.filter((t) => t.type === "other");
-      break;
+
     case "completed":
-      list = recentCompletedTasks.value;
+      list = list.filter(i => i.done);
       break;
+
     case "incomplete":
-      list = activeTasks.value;
+      list = list.filter(i => !i.done);
       break;
+    
+    case "subtasks":
+      list = list.filter(i => i.isSubtask);
   }
+
   return list;
 });
 
-function handleDeleteTask() {
-  if (!selectedTask.value) return;
+function handleDelete() {
+  if (!selectedItem.value) return;
 
-  tasks.deleteTask(selectedTask.value.id);
-  selectedTask.value = null;
+  if (selectedItem.value.isSubtask) {
+    tasks.deleteSubtask(
+      selectedItem.value.parentId,
+      selectedItem.value.id
+    );
+  } else {
+    tasks.deleteTask(selectedItem.value.id);
+  }
+
+  // close modal after deleting
+  selectedItem.value = null;
+}
+
+// mark task complete/incomplete
+function handleToggle() {
+  if (!selectedItem.value) return;
+
+  if (selectedItem.value.isSubtask) {
+    tasks.toggleSubtask(
+      selectedItem.value.parentId,
+      selectedItem.value.id
+    );
+  } else {
+    tasks.toggleDone(selectedItem.value.id);
+  }
+
+  // close modal after mark complete/incomplete
+  selectedItem.value = null; 
 }
 
 const upcomingDeadlines = computed(() =>

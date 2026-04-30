@@ -114,9 +114,19 @@ export const useTaskStore = defineStore('tasks', () => {
     }
   }
 
+  // delete main tasks
   function deleteTask(id) {
     tasks.value = tasks.value.filter(t => t.id !== id)
     persist()
+  }
+
+  // delete subtasks
+  function deleteSubtask(parentId, subtaskId) {
+    const task = tasks.value.find(t => t.id === parentId);
+    if (!task) return;
+
+    task.subtasks = task.subtasks.filter(s => s.id !== subtaskId);
+    persist();
   }
 
   function toggleDone(id) {
@@ -148,5 +158,30 @@ export const useTaskStore = defineStore('tasks', () => {
     return tasks.value.filter(t => t.due === date)
   }
 
-  return { tasks, addTask, updateTask, deleteTask, toggleDone, toggleSubtask, totalDone, totalPending, highPriority, tasksForDate }
+  // consider both main tasks and subtasks when returning total tasks
+  function getWeekWorkItems(start, end) {
+    const taskItems = tasks.value
+      .filter(t => t.due >= start && t.due <= end)
+      .map(t => ({
+        date: t.due,
+        done: t.done,
+        priority: t.priority,
+        type: t.type || "other"
+      }));
+
+    const subtaskItems = tasks.value.flatMap(t =>
+      (t.subtasks || [])
+        .filter(s => s.date && s.date >= start && s.date <= end)
+        .map(s => ({
+          date: s.date,
+          done: s.done,
+          priority: t.priority,
+          type: t.type || "other"
+        }))
+    );
+
+  return [...taskItems, ...subtaskItems];
+}
+
+  return { tasks, addTask, updateTask, deleteTask, deleteSubtask, toggleDone, toggleSubtask, totalDone, totalPending, highPriority, tasksForDate, getWeekWorkItems}
 })
