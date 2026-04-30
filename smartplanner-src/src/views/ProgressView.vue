@@ -138,6 +138,37 @@ const weekLabel = computed(() => {
   return `${s.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} - ${e.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`
 })
 
+const weekISOSet = computed(() => new Set(weekRange.value.map(toLocalISO)))
+const weekTasks = computed(() => tasks.tasks.filter(t => weekISOSet.value.has(t.due)))
+const weekSubtasks = computed(() => tasks.tasks.flatMap(t =>
+  (t.subtasks || [])
+    .filter(s => s.date && weekISOSet.value.has(s.date))
+    .map(s => ({
+      ...s,
+      key: `${t.id}-${s.id}`,
+      parentId: t.id,
+      parentTitle: t.title,
+      priority: t.priority,
+      type: t.type || 'other'
+    }))
+))
+const weekWorkItems = computed(() => [
+  ...weekTasks.value.map(t => ({
+    id: `task-${t.id}`,
+    date: t.due,
+    done: t.done,
+    priority: t.priority,
+    type: t.type || 'other'
+  })),
+  ...weekSubtasks.value.map(s => ({
+    id: `subtask-${s.key}`,
+    date: s.date,
+    done: s.done,
+    priority: s.priority,
+    type: s.type || 'other'
+  }))
+])
+
 const stats = computed(() => [
   { label: 'Tasks completed', value: weekTasks.value.filter(t => t.done).length, color: 'var(--accent)' },
   { label: 'Still pending', value: weekTasks.value.filter(t => !t.done).length, color: '#E05A4E' },
@@ -145,17 +176,15 @@ const stats = computed(() => [
   { label: 'Total tasks', value: weekTasks.value.length, color: '#5A9ACA' },
 ])
 
-const weekISOSet = computed(() => new Set(weekRange.value.map(toLocalISO)))
-const weekTasks = computed(() => tasks.tasks.filter(t => weekISOSet.value.has(t.due)))
-const taskTypes = computed(() => [...new Set(weekTasks.value.map(t => t.type || 'other'))])
+const taskTypes = computed(() => [...new Set(weekWorkItems.value.map(item => item.type || 'other'))])
 
 const completionChartData = computed(() => ({
   labels: taskTypes.value.map(type => type.charAt(0).toUpperCase() + type.slice(1)),
   datasets: [{
     label: 'Completion %',
     data: taskTypes.value.map(type => {
-      const all = weekTasks.value.filter(t => (t.type || 'other') === type)
-      const done = all.filter(t => t.done)
+      const all = weekWorkItems.value.filter(item => (item.type || 'other') === type)
+      const done = all.filter(item => item.done)
       return all.length ? Math.round(done.length / all.length * 100) : 0
     }),
     backgroundColor: taskTypes.value.map(type => chartColors[type] || chartColors.other),
@@ -167,7 +196,7 @@ const timeChartData = computed(() => ({
   labels: taskTypes.value.map(type => type.charAt(0).toUpperCase() + type.slice(1)),
   datasets: [{
     label: 'Estimated hours',
-    data: taskTypes.value.map(type => weekTasks.value.filter(t => (t.type || 'other') === type).length * 1.5),
+    data: taskTypes.value.map(type => weekWorkItems.value.filter(item => (item.type || 'other') === type).length * 1.5),
     backgroundColor: taskTypes.value.map(type => chartColors[type] || chartColors.other),
     borderWidth: 0
   }]
@@ -179,18 +208,16 @@ const weeklyChartData = computed(() => ({
     label: 'Tasks and subtasks',
     data: weekRange.value.map(day => {
       const iso = toLocalISO(day)
-      const mainTasks = tasks.tasks.filter(t => t.due === iso).length
-      const subtasks = tasks.tasks.flatMap(t => t.subtasks || []).filter(s => s.date === iso).length
-      return mainTasks + subtasks
+      return weekWorkItems.value.filter(item => item.date === iso).length
     }),
     backgroundColor: '#3A6B9A',
     borderRadius: 6
   }]
 }))
 
-const scheduledSubtasks = computed(() => tasks.tasks.flatMap(t =>
-  (t.subtasks || []).map(s => ({ ...s, key: `${t.id}-${s.id}`, parentId: t.id, parentTitle: t.title }))
-).filter(s => s.date && weekISOSet.value.has(s.date)).sort((a, b) => `${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`)))
+const scheduledSubtasks = computed(() =>
+  [...weekSubtasks.value].sort((a, b) => `${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`))
+)
 
 const incompleteTasks = computed(() => weekTasks.value.filter(t => !t.done))
 

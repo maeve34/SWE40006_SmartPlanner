@@ -212,25 +212,25 @@
             <div class="stat-grid">
               <div class="stat-block">
                 <div class="sn" style="color: var(--accent)">
-                  {{ tasks.totalDone }}
+                  {{ weekStats.done }}
                 </div>
                 <div class="sl">Done</div>
               </div>
               <div class="stat-block">
                 <div class="sn" style="color: #e05a4e">
-                  {{ tasks.totalPending }}
+                  {{ weekStats.pending }}
                 </div>
                 <div class="sl">Pending</div>
               </div>
               <div class="stat-block">
                 <div class="sn" style="color: #d4933c">
-                  {{ tasks.highPriority }}
+                  {{ weekStats.highPriority }}
                 </div>
                 <div class="sl">High priority</div>
               </div>
               <div class="stat-block">
                 <div class="sn" style="color: #5a9aca">
-                  {{ tasks.tasks.length }}
+                  {{ weekStats.total }}
                 </div>
                 <div class="sl">Total</div>
               </div>
@@ -391,6 +391,16 @@ const weekTasks = computed(() => {
   const start = weekDays.value[0].iso;
   const end = weekDays.value[6].iso;
   return tasks.tasks.filter((t) => t.due >= start && t.due <= end);
+});
+const weekStats = computed(() => {
+  return {
+    done: weekTasks.value.filter((task) => task.done).length,
+    pending: weekTasks.value.filter((task) => !task.done).length,
+    highPriority: weekTasks.value.filter(
+      (task) => task.priority === "high" && !task.done,
+    ).length,
+    total: weekTasks.value.length,
+  };
 });
 
 function shiftWeek(dir) {
