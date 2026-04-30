@@ -44,7 +44,7 @@
 
       <div class="bottom-row">
         <div class="card bottom-card">
-          <p class="bc-title">Incomplete tasks</p>
+          <p class="bc-title">Incomplete main tasks</p>
           <div v-if="incompleteTasks.length">
             <div v-for="t in incompleteTasks" :key="t.id" class="it-item">
               <div class="it-left">
@@ -152,28 +152,33 @@ const weekSubtasks = computed(() => tasks.tasks.flatMap(t =>
       type: t.type || 'other'
     }))
 ))
-const weekWorkItems = computed(() => [
-  ...weekTasks.value.map(t => ({
-    id: `task-${t.id}`,
-    date: t.due,
-    done: t.done,
-    priority: t.priority,
-    type: t.type || 'other'
-  })),
-  ...weekSubtasks.value.map(s => ({
-    id: `subtask-${s.key}`,
-    date: s.date,
-    done: s.done,
-    priority: s.priority,
-    type: s.type || 'other'
-  }))
-])
+const weekWorkItems = computed(() => {
+  const start = toLocalISO(weekRange.value[0])
+  const end = toLocalISO(weekRange.value[6])
+  return tasks.getWeekWorkItems(start, end)
+})
 
 const stats = computed(() => [
-  { label: 'Tasks completed', value: weekTasks.value.filter(t => t.done).length, color: 'var(--accent)' },
-  { label: 'Still pending', value: weekTasks.value.filter(t => !t.done).length, color: '#E05A4E' },
-  { label: 'High priority', value: weekTasks.value.filter(t => t.priority === 'high' && !t.done).length, color: '#D4933C' },
-  { label: 'Total tasks', value: weekTasks.value.length, color: '#5A9ACA' },
+  { 
+    label: 'Tasks completed', 
+    value: weekWorkItems.value.filter(i => i.done).length, 
+    color: 'var(--accent)' 
+  },
+  { 
+    label: 'Still pending', 
+    value: weekWorkItems.value.filter(i => !i.done).length, 
+    color: '#E05A4E' 
+  },
+  { 
+    label: 'High priority', 
+    value: weekWorkItems.value.filter(i => i.priority === 'high' && !i.done).length, 
+    color: '#D4933C' 
+  },
+  { 
+    label: 'Total tasks', 
+    value: weekWorkItems.value.length, 
+    color: '#5A9ACA' 
+  },
 ])
 
 const taskTypes = computed(() => [...new Set(weekWorkItems.value.map(item => item.type || 'other'))])
@@ -219,7 +224,11 @@ const scheduledSubtasks = computed(() =>
   [...weekSubtasks.value].sort((a, b) => `${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`))
 )
 
-const incompleteTasks = computed(() => weekTasks.value.filter(t => !t.done))
+const incompleteTasks = computed(() =>
+  tasks.tasks.filter(t =>
+    !t.done && weekISOSet.value.has(t.due)
+  )
+)
 
 const insightText = computed(() => {
   const values = weeklyChartData.value.datasets[0].data
