@@ -403,7 +403,9 @@ async function genAI() {
   aiLoading.value = true; 
 
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/ai/subtasks`, {
+    // normalize URL to avoid double slash, causing wrong routing
+    const base = import.meta.env.VITE_API_URL.replace(/\/+$/, "");
+    const res = await fetch(`${base}/api/ai/subtasks`,{
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -867,6 +869,10 @@ function validateSubtaskSchedule() {
   transform: translateY(14px) scale(0.97);
 }
 input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
+input[type="time"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
   cursor: pointer;
 }
