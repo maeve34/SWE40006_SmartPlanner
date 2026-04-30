@@ -67,7 +67,7 @@
                     class="task-cb"
                     @click="tasks.toggleSubtask(selectedTask.id, s.id)"
                   >
-                    <span v-if="s.done" class="cb-check">✓</span>
+                    <span v-if="s.done" class="cb-check"><Check size="13"/></span>
                   </button>
                   <div>
                     <div class="detail-sub-name">{{ s.title }}</div>
@@ -190,13 +190,13 @@
               <span class="pill" :class="ppill[t.priority]">{{
                 t.priority
               }}</span>
-              <div class="task-acts">
-                <button class="tact-del" @click="tasks.deleteTask(t.id)">
-                  <X size="12" />
-                </button>
-              </div>
             </div>
-          </TransitionGroup>
+            </TransitionGroup>
+            <div class="task-acts">
+              <button class="tact-del" @click="tasks.deleteTask(t.id)">
+                <X size="12" />
+              </button>
+            </div>
 
           <div v-if="filteredTasks.length === 0" class="empty-state">
             <p class="es-icon"><ClipboardList /></p>

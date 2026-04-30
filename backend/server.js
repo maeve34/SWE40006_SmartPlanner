@@ -32,11 +32,6 @@ app.use(
 
 app.use(express.json());
 
-app.get("/", (req, res) => {
-  res.send("SmartPlanner backend is running");
-});
-
-
 // Azure OpenAI Service from GitHub to generate subtasks based on task description
 const openai = new OpenAI({
   apiKey: process.env.GITHUB_OPENAI_API_KEY,
@@ -125,6 +120,8 @@ app.post("/api/ai/subtasks", async (req, res) => {
   }
 });
 
-app.listen(3000, () => {
-  console.log("Backend running on http://localhost:3000");
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`Backend running on port ${PORT}`);
 });
