@@ -178,50 +178,62 @@
     }
     return ''
   }
-  function handleLogin() {
+
+  async function handleLogin() {
     resetErrors()
-    if (!email.value && !password.value) { 
-      error.value.all = 'Please fill in all fields.'; 
+
+    if (!email.value && !password.value) {
+      error.value.all = 'Please fill in all fields.'
       return
     }
-    
+
     error.value.email = validateLoginIdentifier(email.value)
     error.value.password = validatePassword(password.value)
 
-    // stop if any field 
     if (error.value.email || error.value.password) return
 
-    const result = auth.login(email.value, password.value)
-    if (!result.ok) {
-      error.value.all = result.message
+    try {
+      const result = await auth.login(email.value, password.value)
+
+      if (!result.ok) {
+        error.value.all = result.message
+        return
+      }
+
+      router.push('/dashboard')
+
+    } catch (err) {
+      console.error(err)
+      error.value.all = 'Unable to connect to server.'
+    }
+  }
+
+  async function handleRegister() {
+    resetErrors()
+
+    if (!name.value && !email.value && !password.value && !cfmPassword.value) {
+      error.value.all = 'Please fill in all fields.'
       return
     }
-    router.push('/dashboard')
-  }
-  function handleRegister() {
-    resetErrors()
-    if (!name.value && !email.value && !password.value && !cfmPassword.value) { 
-      error.value.all = 'Please fill in all fields.'; 
-      return 
-    } 
-    if (!name.value){
-      error.value.name = 'Please fill in your name.';
-    } 
 
-    if (!email.value){
-      error.value.email = 'Please fill in your email.';
-    }else if(!/^\S+@\S+\.\S+$/.test(email.value)) {
-      error.value.email = 'Invalid email format.';
-    } 
+    if (!name.value) {
+      error.value.name = 'Please fill in your name.'
+    }
+
+    if (!email.value) {
+      error.value.email = 'Please fill in your email.'
+    } else if (!/^\S+@\S+\.\S+$/.test(email.value)) {
+      error.value.email = 'Invalid email format.'
+    }
 
     error.value.password = validatePassword(password.value)
 
-    if (!cfmPassword.value){
-      error.value.cfmPassword = 'Please confirm your password.';
-    } else if (password.value !== cfmPassword.value){
+    if (!cfmPassword.value) {
+      error.value.cfmPassword = 'Please confirm your password.'
+    } else if (password.value !== cfmPassword.value) {
       error.value.cfmPassword = 'Passwords do not match.'
     }
-    
+
     if (
       error.value.name ||
       error.value.email ||
@@ -229,18 +241,33 @@
       error.value.cfmPassword
     ) return
 
-    const result = auth.register(name.value, email.value, password.value)
-    if (!result.ok) {
-      error.value.email = result.message
-      return
-    }
+    try {
+      const result = await auth.register(
+        name.value,
+        email.value,
+        password.value
+      )
 
-    // switch mode back to prompt user to login after successful registration
-    success.value = 'Account created! Please sign in.'
-    setTimeout(() => success.value = '', 3000)
-    mode.value = 'login'
-    password.value = ''
-    cfmPassword.value = ''
+      if (!result.ok) {
+        error.value.email = result.message
+        return
+      }
+
+      success.value = 'Account created! Please sign in.'
+
+      setTimeout(() => {
+        success.value = ''
+      }, 3000)
+
+      mode.value = 'login'
+
+      password.value = ''
+      cfmPassword.value = ''
+
+    } catch (err) {
+      console.error(err)
+      error.value.all = 'Unable to connect to server.'
+    }
   }
 </script>
 <style scoped>
