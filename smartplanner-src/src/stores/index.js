@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 function readJSON(key, fallback) {
   try {
@@ -10,67 +10,76 @@ function readJSON(key, fallback) {
     return fallback
   }
 }
-
 export const useAuthStore = defineStore('auth', () => {
-  const accountStorageKey = 'sp_accounts'
   const user = ref(readJSON('sp_user', null))
-  const accounts = ref(readJSON(accountStorageKey, []))
 
-  const isLoggedIn = computed(() =>
-    !!user.value && !!findAccount(user.value.email || user.value.username || user.value.name)
-  )
+  const isLoggedIn = computed(() => !!user.value)
 
-  function normalizeIdentifier(value) {
-    return value.trim().toLowerCase()
+  async function register(name, email, password) {
+    try {
+      const res = await fetch('http://localhost:3000/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          password
+        })
+      })
+
+      return await res.json()
+
+    } catch (err) {
+      console.error(err)
+
+      return {
+        ok: false,
+        message: 'Unable to connect to server.'
+      }
+    }
   }
 
-  function persistAccounts() {
-    localStorage.setItem(accountStorageKey, JSON.stringify(accounts.value))
-  }
+  async function login(identifier, password) {
+    try {
+      const res = await fetch('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          identifier,
+          password
+        })
+      })
 
-  function findAccount(identifier) {
-    const normalized = normalizeIdentifier(identifier)
-    return accounts.value.find(account =>
-      account.email.toLowerCase() === normalized ||
-      account.username.toLowerCase() === normalized
-    )
-  }
+      const data = await res.json()
 
-  function register(name, email, password) {
-    const cleanName = name.trim()
-    const cleanEmail = email.trim()
-    const username = cleanEmail.split('@')[0]
+      if (!data.ok) {
+        return data
+      }
 
-    if (findAccount(cleanEmail) || findAccount(username)) {
-      return { ok: false, message: 'An account with this email or username already exists.' }
+      user.value = {
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        username: data.user.username,
+        avatar: data.user.name.charAt(0).toUpperCase()
+      }
+
+      localStorage.setItem('sp_user', JSON.stringify(user.value))
+
+      return { ok: true }
+
+    } catch (err) {
+      console.error(err)
+
+      return {
+        ok: false,
+        message: 'Unable to connect to server.'
+      }
     }
-
-    accounts.value = [
-      ...accounts.value,
-      { name: cleanName, email: cleanEmail, username, password }
-    ]
-    persistAccounts()
-    return { ok: true }
-  }
-
-  function login(identifier, password) {
-    const account = findAccount(identifier)
-    if (!account) {
-      return { ok: false, message: 'No account found with that email address or username.' }
-    }
-    if (account.password !== password) {
-      return { ok: false, message: 'Incorrect password for this account.' }
-    }
-
-    const name = account.name || account.username
-    user.value = {
-      name,
-      email: account.email,
-      username: account.username,
-      avatar: name.charAt(0).toUpperCase()
-    }
-    localStorage.setItem('sp_user', JSON.stringify(user.value))
-    return { ok: true }
   }
 
   function logout() {
@@ -78,75 +87,111 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('sp_user')
   }
 
-  return { user, isLoggedIn, register, login, logout }
+  return {
+    user,
+    isLoggedIn,
+    register,
+    login,
+    logout
+  }
 })
 
 export const useTaskStore = defineStore('tasks', () => {
-  const taskStorageKey = 'sp_tasks_v2'
-  const savedTasks = readJSON(taskStorageKey, [])
-  const tasks = ref(Array.isArray(savedTasks) ? savedTasks.map(normalizeTask) : [])
+  const tasks = ref([])
+  const API = import.meta.env.VITE_API_URL?.replace(/\/+$/, '') || 'http://localhost:3000'
 
-  function normalizeTask(task) {
-    return {
-      ...task,
-      subtasks: (task.subtasks || []).map((sub, index) => typeof sub === 'string'
-        ? { id: Number(`${task.id}${index}`), title: sub, date: task.due, start: '', end: '', done: false }
-        : { id: sub.id || Date.now() + index, title: sub.title || sub.name || '', date: sub.date || task.due, start: sub.start || '', end: sub.end || '', done: !!sub.done }
-      )
+  const auth = useAuthStore()
+
+  async function fetchTasks() {
+    if (!auth.user) return
+    try {
+      const res = await fetch(`${API}/api/tasks?userId=${auth.user.id}`)
+      tasks.value = await res.json()
+    } catch (err) {
+      console.error(err)
     }
   }
 
-  function persist() {
-    localStorage.setItem(taskStorageKey, JSON.stringify(tasks.value))
-  }
+  // Auto-fetch when user logs in; clear when user logs out
+  watch(() => auth.user, (user) => {
+    if (user) fetchTasks()
+    else tasks.value = []
+  }, { immediate: true })
 
-  function addTask(task) {
-    const nextTask = normalizeTask({ id: Date.now(), done: false, ...task })
-    tasks.value = [nextTask, ...tasks.value]
-    persist()
-  }
-
-  function updateTask(id, patch) {
-    const i = tasks.value.findIndex(t => t.id === id)
-    if (i > -1) {
-      tasks.value[i] = { ...tasks.value[i], ...patch }
-      persist()
+  async function addTask(task) {
+    if (!auth.user) return
+    try {
+      const res = await fetch(`${API}/api/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...task, userId: auth.user.id }),
+      })
+      const data = await res.json()
+      if (data.ok) tasks.value = [data.task, ...tasks.value]
+    } catch (err) {
+      console.error(err)
     }
   }
 
-  // delete main tasks
-  function deleteTask(id) {
-    tasks.value = tasks.value.filter(t => t.id !== id)
-    persist()
-  }
-
-  // delete subtasks
-  function deleteSubtask(parentId, subtaskId) {
-    const task = tasks.value.find(t => t.id === parentId);
-    if (!task) return;
-
-    task.subtasks = task.subtasks.filter(s => s.id !== subtaskId);
-    persist();
-  }
-
-  function toggleDone(id) {
-    const t = tasks.value.find(t => t.id === id)
-    if (t) {
-      t.done = !t.done
-      t.subtasks = (t.subtasks || []).map(s => ({ ...s, done: t.done }))
-      persist()
-    }
-  }
-
-  function toggleSubtask(taskId, subtaskId) {
-    const t = tasks.value.find(t => t.id === taskId)
-    const s = t?.subtasks.find(s => s.id === subtaskId)
-    if (s) {
-      s.done = !s.done
-      if (t.subtasks.length) {
-        t.done = t.subtasks.every(s => s.done)
+  async function updateTask(id, patch) {
+    try {
+      const res = await fetch(`${API}/api/tasks/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        const i = tasks.value.findIndex(t => t.id === id)
+        if (i > -1) tasks.value[i] = data.task
       }
-      persist()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  async function deleteTask(id) {
+    try {
+      await fetch(`${API}/api/tasks/${id}`, { method: 'DELETE' })
+      tasks.value = tasks.value.filter(t => t.id !== id)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  async function deleteSubtask(parentId, subtaskId) {
+    try {
+      await fetch(`${API}/api/tasks/${parentId}/subtasks/${subtaskId}`, { method: 'DELETE' })
+      const task = tasks.value.find(t => t.id === parentId)
+      if (task) task.subtasks = task.subtasks.filter(s => s.id !== subtaskId)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  async function toggleDone(id) {
+    try {
+      const res = await fetch(`${API}/api/tasks/${id}/toggle`, { method: 'PATCH' })
+      const data = await res.json()
+      if (data.ok) {
+        const i = tasks.value.findIndex(t => t.id === id)
+        if (i > -1) tasks.value[i] = data.task
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  async function toggleSubtask(taskId, subtaskId) {
+    try {
+      const res = await fetch(`${API}/api/tasks/${taskId}/subtasks/${subtaskId}/toggle`, { method: 'PATCH' })
+      const data = await res.json()
+      if (data.ok) {
+        const i = tasks.value.findIndex(t => t.id === taskId)
+        if (i > -1) tasks.value[i] = data.task
+      }
+    } catch (err) {
+      console.error(err)
     }
   }
 
@@ -158,30 +203,19 @@ export const useTaskStore = defineStore('tasks', () => {
     return tasks.value.filter(t => t.due === date)
   }
 
-  // consider both main tasks and subtasks when returning total tasks
   function getWeekWorkItems(start, end) {
     const taskItems = tasks.value
       .filter(t => t.due >= start && t.due <= end)
-      .map(t => ({
-        date: t.due,
-        done: t.done,
-        priority: t.priority,
-        type: t.type || "other"
-      }));
+      .map(t => ({ date: t.due, done: t.done, priority: t.priority, type: t.type || 'other' }))
 
     const subtaskItems = tasks.value.flatMap(t =>
       (t.subtasks || [])
         .filter(s => s.date && s.date >= start && s.date <= end)
-        .map(s => ({
-          date: s.date,
-          done: s.done,
-          priority: t.priority,
-          type: t.type || "other"
-        }))
-    );
+        .map(s => ({ date: s.date, done: s.done, priority: t.priority, type: t.type || 'other' }))
+    )
 
-  return [...taskItems, ...subtaskItems];
-}
+    return [...taskItems, ...subtaskItems]
+  }
 
-  return { tasks, addTask, updateTask, deleteTask, deleteSubtask, toggleDone, toggleSubtask, totalDone, totalPending, highPriority, tasksForDate, getWeekWorkItems}
+  return { tasks, fetchTasks, addTask, updateTask, deleteTask, deleteSubtask, toggleDone, toggleSubtask, totalDone, totalPending, highPriority, tasksForDate, getWeekWorkItems }
 })
