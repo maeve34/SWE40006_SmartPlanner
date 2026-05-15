@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 
+const API = import.meta.env.VITE_API_URL?.replace(/\/+$/, '') || 'http://localhost:3000'
+
 function readJSON(key, fallback) {
   try {
     const raw = localStorage.getItem(key)
@@ -17,7 +19,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function register(name, email, password) {
     try {
-      const res = await fetch('http://localhost:3000/api/auth/register', {
+      const res = await fetch(`${API}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -43,7 +45,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(identifier, password) {
     try {
-      const res = await fetch('http://localhost:3000/api/auth/login', {
+      const res = await fetch(`${API}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -98,7 +100,6 @@ export const useAuthStore = defineStore('auth', () => {
 
 export const useTaskStore = defineStore('tasks', () => {
   const tasks = ref([])
-  const API = import.meta.env.VITE_API_URL?.replace(/\/+$/, '') || 'http://localhost:3000'
 
   const auth = useAuthStore()
 
