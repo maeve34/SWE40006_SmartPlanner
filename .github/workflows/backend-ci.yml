@@ -2,9 +2,9 @@ name: Backend CI
 
 on:
   push:
-    branches: [neondb]   # swap to [main] when ready for production flow
+    branches: [main]   # swap to [main] when ready for production flow
   pull_request:
-    branches: [neondb]
+    branches: [main]
 
 jobs:
   test-and-deploy:
