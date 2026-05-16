@@ -134,3 +134,7 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+backend/.env
+backend/.env.save
+smartplanner-src/.env
+smartplanner-src/.env.production
