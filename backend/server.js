@@ -1,10 +1,8 @@
 import dotenv from "dotenv";
-import app from "./app.js";
-
-dotenv.config();
-
+import express from "express";
+import cors from "cors";
 import Groq from "groq-sdk";
-import bodyParser from "body-parser";  // ← ADD THIS
+import bodyParser from "body-parser";
 
 dotenv.config();
 
