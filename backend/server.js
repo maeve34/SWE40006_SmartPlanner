@@ -1,18 +1,16 @@
 import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
-import Groq from "groq-sdk";
 import bodyParser from "body-parser";
-
-dotenv.config();
+import Groq from "groq-sdk";
+import authRoutes from "./routes/auth.js";
+import taskRoutes from "./routes/tasks.js";
+import aiRoutes from "./routes/ai.js";
 
 const app = express();
 
-app.use("/api/auth", authRoutes);
-app.use("/api/tasks", taskRoutes);
-app.use("/api/ai", aiRoutes);
-
-// CORS
 const allowedOrigins = (process.env.CORS_ORIGIN || "")
   .split(",")
   .map(o => o.trim())
@@ -27,20 +25,17 @@ app.use(cors({
   },
 }));
 
-// ✅ Replace express.json() with these two lines
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-import authRoutes from "./routes/auth.js";
-import taskRoutes from "./routes/tasks.js";
-import aiRoutes from "./routes/ai.js";
+app.use("/api/auth", authRoutes);
+app.use("/api/tasks", taskRoutes);
+app.use("/api/ai", aiRoutes);
 
-// ✅ Groq AI client
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-// ✅ AI subtask generation route
 app.post("/api/ai/subtasks", async (req, res) => {
   const { title, description } = req.body;
 
@@ -51,9 +46,7 @@ app.post("/api/ai/subtasks", async (req, res) => {
   try {
     const prompt = `
       You are a productivity assistant.
-
       Break this task into at most 3 subtasks.
-
       Rules:
       - Max 3 subtasks
       - Each subtask must include EXACTLY ONE time estimate
@@ -81,8 +74,6 @@ app.post("/api/ai/subtasks", async (req, res) => {
     });
 
     const text = response.choices[0].message.content;
-
-    // extract JSON array from response
     const match = text.match(/\[[\s\S]*\]/);
 
     let parsed = [];
@@ -92,7 +83,6 @@ app.post("/api/ai/subtasks", async (req, res) => {
       console.error("JSON parse failed:", e);
     }
 
-    // clean up any range estimates e.g. "30-60 min" → "45 min"
     function cleanEstimate(est) {
       if (!est) return "30 min";
       if (est.includes("-")) {
@@ -110,9 +100,7 @@ app.post("/api/ai/subtasks", async (req, res) => {
       est: cleanEstimate(item.est || ""),
     }));
 
-    // fallback if AI returns empty or unparseable response
     if (!parsed.length) {
-      console.warn("AI returned empty result, using fallback");
       return res.json([
         { name: "Research & planning", est: "30 min" },
         { name: "Implementation", est: "2 hr" },
