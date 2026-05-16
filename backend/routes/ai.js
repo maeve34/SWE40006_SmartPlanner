@@ -3,11 +3,8 @@ import Groq from "groq-sdk";
 
 const router = express.Router();
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
-
 router.post("/subtasks", async (req, res) => {
+  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
   const { title, description } = req.body;
 
   if (!description) {

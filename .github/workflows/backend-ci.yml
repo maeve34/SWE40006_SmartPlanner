@@ -29,6 +29,12 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Apply database migrations
+        if: github.event_name == 'push'
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Deploy to staging
         # Only deploy on push (not on pull_request), and only when tests pass
         if: github.event_name == 'push'
