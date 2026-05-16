@@ -48,11 +48,9 @@ router.post("/subtasks", async (req, res) => {
     });
 
     const text = response.choices[0].message.content;
-
     const match = text.match(/\[[\s\S]*\]/);
 
     let parsed = [];
-
     try {
       parsed = match ? JSON.parse(match[0]) : [];
     } catch (e) {
@@ -64,7 +62,6 @@ router.post("/subtasks", async (req, res) => {
         const [min, max] = est.split("-").map(s => parseInt(s));
         return Math.round((min + max) / 2) + " min";
       }
-
       return est;
     }
 
