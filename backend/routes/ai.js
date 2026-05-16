@@ -1,11 +1,10 @@
 import express from "express";
-import OpenAI from "openai";
+import Groq from "groq-sdk";
 
 const router = express.Router();
 
-const openai = new OpenAI({
-  apiKey: process.env.GITHUB_OPENAI_API_KEY,
-  baseURL: "https://models.inference.ai.azure.com",
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
 });
 
 router.post("/subtasks", async (req, res) => {
@@ -42,17 +41,16 @@ router.post("/subtasks", async (req, res) => {
       Now return result:
     `;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+    const response = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
       messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
     });
 
     const text = response.choices[0].message.content;
-
     const match = text.match(/\[[\s\S]*\]/);
 
     let parsed = [];
-
     try {
       parsed = match ? JSON.parse(match[0]) : [];
     } catch (e) {
@@ -60,11 +58,11 @@ router.post("/subtasks", async (req, res) => {
     }
 
     function cleanEstimate(est) {
+      if (!est) return "30 min";
       if (est.includes("-")) {
         const [min, max] = est.split("-").map(s => parseInt(s));
         return Math.round((min + max) / 2) + " min";
       }
-
       return est;
     }
 
