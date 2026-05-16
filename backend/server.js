@@ -8,6 +8,10 @@ dotenv.config();
 
 const app = express();
 
+app.use("/api/auth", authRoutes);
+app.use("/api/tasks", taskRoutes);
+app.use("/api/ai", aiRoutes);
+
 // CORS
 const allowedOrigins = (process.env.CORS_ORIGIN || "")
   .split(",")
@@ -26,6 +30,10 @@ app.use(cors({
 // ✅ Replace express.json() with these two lines
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+import authRoutes from "./routes/auth.js";
+import taskRoutes from "./routes/tasks.js";
+import aiRoutes from "./routes/ai.js";
 
 // ✅ Groq AI client
 const groq = new Groq({
