@@ -1,5 +1,8 @@
 # SWE40006_SmartPlanner
 
+![Backend CI](https://github.com/maeve34/SWE40006_SmartPlanner/actions/workflows/backend-ci.yml/badge.svg)
+![Frontend CI](https://github.com/maeve34/SWE40006_SmartPlanner/actions/workflows/frontend-ci.yml/badge.svg)
+
 To run frontend of the app (Vue):
 1. cd smartplanner-src
 2. npm install

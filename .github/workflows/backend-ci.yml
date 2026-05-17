@@ -36,6 +36,22 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Deploy to staging
-        # Only deploy on push (not on pull_request), and only when tests pass
         if: github.event_name == 'push'
         run: curl -f -X POST "${{ secrets.RENDER_STAGING_DEPLOY_HOOK_BACKEND }}"
+
+      - name: Verify deployment
+        if: github.event_name == 'push'
+        run: |
+          echo "Waiting for Render to spin up..."
+          for i in $(seq 1 12); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.RENDER_BACKEND_URL }}/health)
+            if [ "$STATUS" = "200" ]; then
+              echo "Deployment live!"
+              curl -s ${{ secrets.RENDER_BACKEND_URL }}/health
+              exit 0
+            fi
+            echo "Attempt $i: got $STATUS, retrying in 15s..."
+            sleep 15
+          done
+          echo "Deployment did not become healthy in time"
+          exit 1
