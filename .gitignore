@@ -138,3 +138,4 @@ backend/.env
 backend/.env.save
 smartplanner-src/.env
 smartplanner-src/.env.production
+backend/.env.docker

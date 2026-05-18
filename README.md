@@ -18,7 +18,7 @@ To run backend of the app (Node.js + Express.js):
 
 To build the Docker images:
 <!-- Frontend -->
-1. cd frontend
+1. cd smartplanner-src
 2. docker build -t smartplanner-frontend .
 3. docker run -p 80:80 smartplanner-frontend
 
