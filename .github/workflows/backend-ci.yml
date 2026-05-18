@@ -70,7 +70,7 @@ jobs:
             npm install --production
             npx prisma migrate deploy
             pm2 restart smartplanner-backend --update-env
-  
+
       - name: Verify EC2 deployment
         if: github.event_name == 'push'
         run: |
