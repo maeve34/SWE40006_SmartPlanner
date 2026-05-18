@@ -16,6 +16,16 @@ To run backend of the app (Node.js + Express.js):
 3. cp .env.example .env
 4. node server.js
 
+To build the Docker images:
+<!-- Frontend -->
+1. cd frontend
+2. docker build -t smartplanner-frontend .
+3. docker run -p 80:80 smartplanner-frontend
+
+<!-- Backend -->
+4. cd backend
+5. docker build -t smartplanner-backend .
+6. docker run --env-file .env -p 3000:3000 smartplanner-backend
 
 
 
