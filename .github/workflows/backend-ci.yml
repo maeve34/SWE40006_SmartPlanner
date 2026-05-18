@@ -55,3 +55,34 @@ jobs:
           done
           echo "Deployment did not become healthy in time"
           exit 1
+
+      - name: Deploy to AWS EC2 (Production)
+        if: github.event_name == 'push'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/SWE40006_SmartPlanner
+            git pull origin main
+            cd backend
+            npm install --production
+            npx prisma migrate deploy
+            pm2 restart smartplanner-backend --update-env
+  
+      - name: Verify EC2 deployment
+        if: github.event_name == 'push'
+        run: |
+          echo "Waiting for EC2 backend to respond..."
+          for i in $(seq 1 6); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.EC2_HOST }}:3000/health)
+            if [ "$STATUS" = "200" ]; then
+              echo "EC2 deployment live!"
+              exit 0
+            fi
+            echo "Attempt $i: got $STATUS, retrying in 10s..."
+            sleep 10
+          done
+          echo "EC2 did not respond in time"
+          exit 1
