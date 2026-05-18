@@ -1,0 +1,62 @@
+# docker compose for local development with hot reload for backend and frontend, and a Postgres database.
+version: '3.9'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: smartplanner-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - db
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - smartplanner
+
+  frontend:
+    build:
+      context: ./smartplanner-src
+      dockerfile: Dockerfile
+    container_name: smartplanner-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    env_file:
+      - ./smartplanner-src/.env
+    depends_on:
+      - backend
+    networks:
+      - smartplanner
+
+  db:
+    image: postgres:15-alpine
+    container_name: smartplanner-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-smartplanner}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - smartplanner
+
+volumes:
+  pgdata:
+    # persist database data between container restarts
+
+networks:
+  smartplanner:
+    driver: bridge
