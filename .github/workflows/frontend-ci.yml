@@ -60,3 +60,38 @@ jobs:
           done
           echo "Deployment did not become healthy in time"
           exit 1
+
+  deploy-production:
+    needs: test-and-deploy
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Deploy to AWS EC2 (Production)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/SWE40006_SmartPlanner/smartplanner-src
+            git pull origin main
+            npm install --production
+            npm run build
+            sudo cp -r dist/* /var/www/html/
+
+      - name: Verify EC2 deployment
+        run: |
+          echo "Waiting for EC2 frontend to respond..."
+          for i in $(seq 1 6); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.EC2_HOST }})
+            if [ "$STATUS" = "200" ]; then
+              echo "EC2 frontend deployment live!"
+              exit 0
+            fi
+            echo "Attempt $i: got $STATUS, retrying in 10s..."
+            sleep 10
+          done
+          echo "EC2 did not respond in time"
+          exit 1
