@@ -26,7 +26,8 @@ app.use(cors({
 
 app.use(express.json());
 
-app.get("/health", (req, res) => res.json({ ok: true, version: "1.0.1" }))
+app.get("/health", (req, res) => res.json({ ok: true, version: "1.1.0" }))
+app.get("/alive", (req, res) => res.json({ alive: true }))
 
 app.use("/api/auth", authRoutes);
 app.use("/api/tasks", taskRoutes);

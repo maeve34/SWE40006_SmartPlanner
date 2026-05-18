@@ -3,8 +3,14 @@ name: Frontend CI
 on:
   push:
     branches: [main]
+    paths:
+      - 'smartplanner-src/**'
+      - '.github/workflows/frontend-ci.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'smartplanner-src/**'
+      - '.github/workflows/frontend-ci.yml'
 
 jobs:
   test-and-deploy:

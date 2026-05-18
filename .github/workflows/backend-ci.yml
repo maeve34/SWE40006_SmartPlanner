@@ -2,9 +2,15 @@ name: Backend CI
 
 on:
   push:
-    branches: [main]   # swap to [main] when ready for production flow
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
 
 jobs:
   test-and-deploy:
@@ -28,6 +34,16 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Check for schema drift
+        if: github.event_name == 'push'
+        run: |
+          npx prisma migrate diff \
+            --from-url "${{ secrets.DATABASE_URL }}" \
+            --to-schema-datamodel prisma/schema.prisma \
+            --exit-code || (echo "Schema drift detected — database is out of sync with migration files" && exit 1)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Apply database migrations
         if: github.event_name == 'push'
