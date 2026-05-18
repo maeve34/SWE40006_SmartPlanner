@@ -13,8 +13,6 @@ const app = express();
 app.use(cors({ origin: process.env.BASE_URL }));
 app.use(express.json());
 
-app.get("/health", (req, res) => res.json({ ok: true, version: "1.0.1" }))
-
 app.use("/api/auth", authRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/tasks", taskRoutes);

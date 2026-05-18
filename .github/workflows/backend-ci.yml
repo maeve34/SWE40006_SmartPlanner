@@ -72,8 +72,14 @@ jobs:
           echo "Deployment did not become healthy in time"
           exit 1
 
-      - name: Deploy to AWS EC2 (Production)
-        if: github.event_name == 'push'
+  deploy-production:
+    needs: test-and-deploy
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Deploy to AWS EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -88,7 +94,6 @@ jobs:
             pm2 restart smartplanner-backend --update-env
 
       - name: Verify EC2 deployment
-        if: github.event_name == 'push'
         run: |
           echo "Waiting for EC2 backend to respond..."
           for i in $(seq 1 6); do
@@ -102,3 +107,4 @@ jobs:
           done
           echo "EC2 did not respond in time"
           exit 1
+
